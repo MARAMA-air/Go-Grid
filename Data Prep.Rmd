@@ -1,0 +1,57 @@
+---
+title: "Go Grid Drafts"
+output: html_document
+---
+
+```{r message=FALSE, include=FALSE}
+
+library(tidyverse)
+library(plotly)
+library(magrittr)
+library(leaflet)
+
+```
+
+
+```{r message=FALSE, include=FALSE}
+
+# data prep:
+# Remove columns that are not needed to reduce size of data frame.
+# Transform data wide to long.
+# Simplify fuel information into one column.
+
+data <- read_csv('REF-HOG-LCR_AEO22_AEO20.csv') %>%
+  select(c(1,2,3,4,6,51,52,44,45,46,47,49,7,8,21,23,25,29,31,34,37,41)) %>%
+  pivot_longer(cols = 15:22, names_to = 'variable', values_to = 'value') %>%
+  mutate(fuel_switch = paste0('BY: ', `BY ertac fuel unit type bin`, ', FY: ', `ertac fuel unit type bin`)) #%>% 
+  #select(-c(13,14))
+
+# We need to reorganize the data in order to treat base year 
+# like a year instead of having it separated into different variables.
+# This allows comparisons between BY and FY data more easily.
+
+data_BY <- data %>% subset(data$Year == 2023 & (str_detect(data$variable, 'BY') | str_detect(data$variable, 'Base Year'))) %>%
+  mutate('Year' = 2016, 
+         'fuel' = `BY ertac fuel unit type bin`)
+data_FY <- data %>% subset(!(str_detect(data$variable, 'BY') | str_detect(data$variable, 'Base Year'))) %>%
+  mutate('fuel' = `ertac fuel unit type bin`)
+data <- data_BY %>% bind_rows(data_FY) %>%
+  select(-c(`BY ertac fuel unit type bin`, `ertac fuel unit type bin`))
+rm(data_BY, data_FY)
+data$variable %<>% str_replace_all(pattern = 'BY |Base year |Base Year |FY |Future year |Future Year ', replacement = '')      
+
+data <- aggregate(data$value, by = data[c('oris', 'Facility Name', 'State', 'ertac region', 'Case?', 'Year', 'Generation Deficit Unit?', 'Retirement Date', 'fuel', 'data type', 'variable', 'Longitude', 'Latitude')], FUN = sum) %>%
+  mutate(value = x) %>%
+  select(-x)
+
+```
+
+```{r}
+
+# data %>% write.csv('REF-HOG-LCR_AEO22_AEO20_GoGrid.csv')
+
+# data1 <- read_csv('REF-HOG-LCR_AEO22_AEO20_GoGrid.csv') %>%
+  # select(-c(1))
+
+
+```
